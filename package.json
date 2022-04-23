@@ -22,6 +22,11 @@
   "volta": {
     "node": "16.13.2"
   },
+  "prettier": {
+    "trailingComma": "es5",
+    "printWidth": 100,
+    "tabWidth": 2
+  },
   "devDependencies": {
     "@swc/core": "^1.2.171",
     "@swc/helpers": "^0.3.8",

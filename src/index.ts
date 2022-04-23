@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as crypto from "crypto";
-import * as iconv from "iconv-lite";
+import { encode, decode } from "iconv-lite";
 import express from "express";
 import schedule from "node-schedule";
 import * as fs from "fs";
@@ -22,21 +22,16 @@ let cachedSID;
 const getSID = async () => {
   if (cachedSID) return cachedSID;
   console.log("Logging in to fritzbox");
-  const login = await axios
-    .get(`${BASE_URL}/login_sid.lua`)
-    .then((a) => a.data);
+  const login = await axios.get(`${BASE_URL}/login_sid.lua`).then((a) => a.data);
+
   const challenge = login.match(/<Challenge>(.*)<\/Challenge>/)[1];
   const challengeString = `${challenge}-${PASSWORD}`;
-  const encodedChallengeString = iconv.encode(
-    iconv.decode(Buffer.from(challengeString), "utf8"),
-    "utf16le"
-  );
+  const encodedChallengeString = encode(decode(Buffer.from(challengeString), "utf8"), "utf16le");
+
   const md5 = hash(encodedChallengeString);
   const responseString = `${challenge}-${md5}`;
   const session = await axios
-    .get(
-      `${BASE_URL}/login_sid.lua?user=${USERNAME}&response=${responseString}`
-    )
+    .get(`${BASE_URL}/login_sid.lua?user=${USERNAME}&response=${responseString}`)
     .then((a) => a.data);
   cachedSID = session.match(/<SID>(.*)<\/SID>/)[1];
   return cachedSID;
@@ -44,6 +39,7 @@ const getSID = async () => {
 
 type LogRecord = {
   timestamp: string;
+  unixMs: number;
   message: string;
   code: string;
   type: string;
@@ -51,27 +47,25 @@ type LogRecord = {
 const getLogs = async () => {
   const SID = await getSID();
   const data = await axios
-    .post(
-      `${BASE_URL}/data.lua`,
-      `xhr=1&sid=${SID}&lang=en&page=log&xhrId=all`,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    )
+    .post(`${BASE_URL}/data.lua`, `xhr=1&sid=${SID}&lang=en&page=log&xhrId=all`, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
     .then((a) => a.data);
   try {
     const records: LogRecord[] = data.data.log.map((row) => {
       const [date, time, message, code, type] = row;
-      const timestamp = DateTime.fromFormat(
-        `${date} ${time}`,
-        "dd.MM.yy HH:mm:ss"
-      );
-      return { timestamp: timestamp.toISO(), message, code, type };
+      const timestamp = DateTime.fromFormat(`${date} ${time}`, "dd.MM.yy HH:mm:ss");
+      return {
+        timestamp: timestamp.toISO(),
+        message,
+        code,
+        type,
+        unixMs: timestamp.toMillis(),
+      };
     });
-    // TODO: should compare by parsed timestamps not strings
-    records.sort((b, a) => a.timestamp.localeCompare(b.timestamp));
+    records.sort((a, b) => a.unixMs - b.unixMs);
     return records;
   } catch (e) {
     console.error(data);
@@ -100,30 +94,28 @@ const DIRECTORY = `
 </html>
 `;
 
-const tracker = new Set<string>();
 const initialize = async () => {
+  let cursor: number = 0;
   if (fs.existsSync(LOG_PATH)) {
     console.log(`Reading existing log at ${LOG_PATH}`);
     const lines = new nReadlines(LOG_PATH);
     let line;
 
     while ((line = lines.next())) {
-      const lineId = hash(line);
-      tracker.add(lineId);
+      const record: LogRecord = JSON.parse(line);
+      if (cursor <= record.unixMs) cursor = record.unixMs;
     }
   }
 
   const load = async () => {
     const rows = await getLogs();
     let count = 0;
-    for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const row = rows[i];
+    for (let row of rows) {
       const logLine = JSON.stringify(row);
-      const id = hash(logLine);
-      if (!tracker.has(id)) {
+      if (cursor <= row.unixMs) {
         count += 1;
-        tracker.add(id);
         fs.appendFileSync(LOG_PATH, logLine + "\n");
+        cursor = row.unixMs;
       }
     }
     console.log(`${rows.length} rows loaded, ${count} rows logged`);

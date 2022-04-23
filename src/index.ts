@@ -42,6 +42,12 @@ const getSID = async () => {
   return cachedSID;
 };
 
+type LogRecord = {
+  timestamp: string;
+  message: string;
+  code: string;
+  type: string;
+};
 const getLogs = async () => {
   const SID = await getSID();
   const data = await axios
@@ -56,14 +62,17 @@ const getLogs = async () => {
     )
     .then((a) => a.data);
   try {
-    return data.data.log.map((row) => {
+    const records: LogRecord[] = data.data.log.map((row) => {
       const [date, time, message, code, type] = row;
       const timestamp = DateTime.fromFormat(
         `${date} ${time}`,
         "dd.MM.yy HH:mm:ss"
       );
-      return { ts: timestamp.toISO(), message, code, type };
+      return { timestamp: timestamp.toISO(), message, code, type };
     });
+    // TODO: should compare by parsed timestamps not strings
+    records.sort((b, a) => a.timestamp.localeCompare(b.timestamp));
+    return records;
   } catch (e) {
     console.error(data);
     throw e;

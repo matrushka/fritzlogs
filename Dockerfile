@@ -10,7 +10,7 @@ FROM node:16-alpine AS runner
 WORKDIR /app
 
 COPY package.json yarn.lock ./
-RUN yarn install --prod --pure-lockfile
+RUN yarn install --prod --pure-lockfile && yarn cache clean
 COPY . ./
 COPY --from=builder /app/build ./build
 

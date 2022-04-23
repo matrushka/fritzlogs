@@ -55,7 +55,10 @@ const getLogs = async () => {
     )
     .then((a) => a.data);
   try {
-    return data.data.log.map((a) => a.map((b) => b.replaceAll(SID, "{{SID}}")));
+    return data.data.log.map((row) => {
+      const [date, time, message, code, type] = row;
+      return { timestamp: `${date} ${time}`, message, code, type };
+    });
   } catch (e) {
     console.error(data);
     throw e;
@@ -98,18 +101,18 @@ const initialize = async () => {
 
   const load = async () => {
     const rows = await getLogs();
-    let i = 0;
+    let count = 0;
     for (let i = rows.length - 1; i >= 0; i -= 1) {
       const row = rows[i];
       const logLine = JSON.stringify(row);
       const id = hash(logLine);
       if (!tracker.has(id)) {
-        i += 1;
+        count += 1;
         tracker.add(id);
         fs.appendFileSync(LOG_PATH, logLine + "\n");
       }
     }
-    console.log(`${rows.length} rows loaded, ${i} rows logged`);
+    console.log(`${rows.length} rows loaded, ${count} rows logged`);
   };
 
   await load();

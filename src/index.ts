@@ -103,7 +103,7 @@ const initialize = async () => {
 
     while ((line = lines.next())) {
       const record: LogRecord = JSON.parse(line);
-      if (cursor <= record.unixMs) cursor = record.unixMs;
+      if (cursor < record.unixMs) cursor = record.unixMs;
     }
   }
 
@@ -112,7 +112,7 @@ const initialize = async () => {
     let count = 0;
     for (let row of rows) {
       const logLine = JSON.stringify(row);
-      if (cursor <= row.unixMs) {
+      if (cursor < row.unixMs) {
         count += 1;
         fs.appendFileSync(LOG_PATH, logLine + "\n");
         cursor = row.unixMs;

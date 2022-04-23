@@ -62,7 +62,7 @@ const getLogs = async () => {
         `${date} ${time}`,
         "dd.MM.yy HH:mm:ss"
       );
-      return { timestamp: timestamp.toISO(), message, code, type };
+      return { ts: timestamp.toISO(), message, code, type };
     });
   } catch (e) {
     console.error(data);

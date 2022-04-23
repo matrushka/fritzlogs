@@ -14,6 +14,9 @@ RUN yarn install --prod --pure-lockfile && yarn cache clean
 COPY . ./
 COPY --from=builder /app/build ./build
 
+VOLUME /var/log
+ENV LOG_PATH=/var/log/fritz.log
+
 EXPOSE 3000
 
 CMD ["yarn", "serve"]

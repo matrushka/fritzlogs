@@ -5,6 +5,7 @@ import express from "express";
 import schedule from "node-schedule";
 import * as fs from "fs";
 import nReadlines from "n-readlines";
+import { DateTime } from "luxon";
 
 const PASSWORD = process.env.FRITZOS_PASSWORD;
 const USERNAME = process.env.FRITZOS_USERNAME;
@@ -57,7 +58,11 @@ const getLogs = async () => {
   try {
     return data.data.log.map((row) => {
       const [date, time, message, code, type] = row;
-      return { timestamp: `${date} ${time}`, message, code, type };
+      const timestamp = DateTime.fromFormat(
+        `${date} ${time}`,
+        "dd.MM.yy HH:mm:ss"
+      );
+      return { timestamp: timestamp.toISO(), message, code, type };
     });
   } catch (e) {
     console.error(data);

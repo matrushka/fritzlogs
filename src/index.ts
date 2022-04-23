@@ -30,9 +30,13 @@ const getLogs = async () => {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
   }).then(a => a.data);
-  const logs = (data.data.log.map(a => a.join("\t")).join("\n") as string).replaceAll(SID, '${SID}');
-
-  return logs;
+  try {
+    const logs = (data.data.log.map(a => a.join("\t")).join("\n") as string).replaceAll(SID, '${SID}');
+    return logs;
+  } catch (e) {
+    console.error(data);
+    throw e;
+  }
 }
 
 process.on('beforeExit', async () => {
